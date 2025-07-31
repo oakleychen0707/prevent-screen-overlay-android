@@ -38,10 +38,8 @@ public class MainActivity extends AppCompatActivity {
         overlayDetector = new OverlayDetector(this);
 
         // 可以選擇性設定 onPositiveClick 行為
-        overlayDetector.setOnPositiveClick(() -> {
-            // 按確定後執行的行為，例如結束 Activity
-            finish();
-        });
+        // 按確定後執行的行為，例如結束 Activity
+        overlayDetector.setOnPositiveClick(this::finish);
 
         // 啟動偵測
         overlayDetector.startDetection();
