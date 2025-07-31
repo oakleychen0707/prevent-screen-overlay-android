@@ -9,7 +9,6 @@ import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import java.util.function.Supplier;
 
 public class OverlayDetector {
     private static final String TAG = "OverlayDetector";
@@ -20,18 +19,11 @@ public class OverlayDetector {
     private Runnable overlayCheckRunnable;
     private View overlayBlockView;
     private boolean isOverlayDetected = false;
-    private Runnable onPositiveClick;
-
-    private Supplier<Boolean> transitioningFlagProvider;
 
     public OverlayDetector(Activity activity) {
         this.activity = activity;
         this.overlayHandler = new Handler(Looper.getMainLooper());
         initOverlayBlockView();
-    }
-
-    public void setOnPositiveClick(Runnable onPositiveClick) {
-        this.onPositiveClick = onPositiveClick;
     }
 
     // 初始化重疊阻擋層
@@ -74,19 +66,8 @@ public class OverlayDetector {
         }
     }
 
-    public void setTransitioningFlagProvider(Supplier<Boolean> provider) {
-        this.transitioningFlagProvider = provider;
-    }
-
     // 檢測是否有重疊應用程式
     private void checkForOverlay() {
-        boolean transitioning = transitioningFlagProvider != null && transitioningFlagProvider.get();
-
-        if (transitioning) {
-            // 畫面切換中，不做警告
-            return;
-        }
-
         boolean currentOverlayState = isOverlayDetectedByMultipleMethods();
 
         if (currentOverlayState && !isOverlayDetected) {
@@ -133,7 +114,7 @@ public class OverlayDetector {
         if (overlayBlockView != null) {
             overlayBlockView.setVisibility(View.VISIBLE);
         }
-        showOverlayWarningDialog(activity, null);
+        showOverlayWarningDialog(activity);
 
         Log.w(TAG, "檢測到畫面重疊，已啟動安全防護");
     }
@@ -147,7 +128,7 @@ public class OverlayDetector {
     }
 
     // Android 12 以下 顯示警告對話框
-    public static void showOverlayWarningDialog(Activity activity, Runnable onPositiveClick) {
+    public static void showOverlayWarningDialog(Activity activity) {
         if (activity.isFinishing() || activity.isDestroyed()) {
             return;
         }
@@ -155,19 +136,12 @@ public class OverlayDetector {
                 .setTitle("安全警告")
                 .setMessage("偵測到螢幕覆蓋攻擊，請先關閉其他應用程式顯示的浮層（如聊天泡泡、懸浮工具），以確保帳號與資料安全。")
                 .setCancelable(false)
-                .setPositiveButton("確定", (dialog, which) -> {
-                    dialog.dismiss();
-                    if (onPositiveClick != null) {
-                        onPositiveClick.run();
-                    } else {
-                        activity.finish();
-                    }
-                })
+                .setPositiveButton("確定", (dialog, which) -> dialog.dismiss())
                 .show();
     }
 
     // Android 12 以上 顯示提示訊息（點擊確定後關閉對話框）
-    public void showOverlayProtectionInfo(Activity activity) {
+    public static void showOverlayProtectionInfo(Activity activity) {
         if (activity.isFinishing() || activity.isDestroyed()) {
             return;
         }
@@ -175,7 +149,7 @@ public class OverlayDetector {
         new AlertDialog.Builder(activity)
                 .setTitle("安全提醒")
                 .setMessage("系統已自動關閉其他應用程式的浮層（如聊天泡泡、懸浮工具），以確保帳號與資料安全。")
-                .setCancelable(true)
+                .setCancelable(false)
                 .setPositiveButton("確定", (dialog, which) -> dialog.dismiss())
                 .show();
     }
@@ -192,22 +166,12 @@ public class OverlayDetector {
     public void onWindowFocusChanged(boolean hasFocus) {
         Log.d(TAG, "視窗焦點變化: " + hasFocus);
         if (!hasFocus) {
-            boolean transitioning = transitioningFlagProvider != null && transitioningFlagProvider.get();
-            if (!transitioning) {
-                overlayHandler.postDelayed(this::checkForOverlay, 100);
-            } else {
-                Log.d(TAG, "onWindowFocusChanged 被跳過：正在轉場中");
-            }
+            overlayHandler.postDelayed(this::checkForOverlay, 100);
         }
     }
 
     public void onUserLeaveHint() {
         Log.d(TAG, "用戶離開提示觸發");
-        boolean transitioning = transitioningFlagProvider != null && transitioningFlagProvider.get();
-        if (!transitioning) {
-            overlayHandler.postDelayed(this::checkForOverlay, 200);
-        } else {
-            Log.d(TAG, "onUserLeaveHint 被跳過：正在轉場中");
-        }
+        overlayHandler.postDelayed(this::checkForOverlay, 200);
     }
 }

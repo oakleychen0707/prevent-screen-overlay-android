@@ -1,5 +1,6 @@
 package com.example.prevent_screen_overlay;
 
+import android.os.Build;
 import android.os.Bundle;
 
 import com.google.android.material.snackbar.Snackbar;
@@ -34,15 +35,16 @@ public class MainActivity extends AppCompatActivity {
 
         setSupportActionBar(binding.toolbar);
 
-        // 建立 OverlayDetector
-        overlayDetector = new OverlayDetector(this);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            getWindow().setHideOverlayWindows(true);
+            OverlayDetector.showOverlayProtectionInfo(this);
+        } else {
+            // 建立 OverlayDetector
+            overlayDetector = new OverlayDetector(this);
 
-        // 可以選擇性設定 onPositiveClick 行為
-        // 按確定後執行的行為，例如結束 Activity
-        overlayDetector.setOnPositiveClick(this::finish);
-
-        // 啟動偵測
-        overlayDetector.startDetection();
+            // 啟動偵測
+            overlayDetector.startDetection();
+        }
 
         NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_main);
         appBarConfiguration = new AppBarConfiguration.Builder(navController.getGraph()).build();
@@ -123,12 +125,16 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
-        overlayDetector.onWindowFocusChanged(hasFocus);
+        if (overlayDetector != null) {
+            overlayDetector.onWindowFocusChanged(hasFocus);
+        }
     }
 
     @Override
     protected void onUserLeaveHint() {
         super.onUserLeaveHint();
-        overlayDetector.onUserLeaveHint();
+        if (overlayDetector != null) {
+            overlayDetector.onUserLeaveHint();
+        }
     }
 }
